@@ -1,0 +1,334 @@
+# Web3 Agent Marketplace API Documentation
+
+Base URL: `http://localhost:3000`
+
+## 1. Create User
+
+### Request
+- **Method**: `POST`
+- **URL**: `http://localhost:3000/api/users`
+- **Headers**: `Content-Type: application/json`
+- **Body**:
+```json
+{
+  "walletAddress": "0x742d35Cc6635C0532925a3b8D5c6d6C4B6E4d5f1"
+}
+```
+
+### Response (201 Created)
+```json
+{
+  "success": true,
+  "user": {
+    "id": 1,
+    "walletAddress": "0x742d35Cc6635C0532925a3b8D5c6d6C4B6E4d5f1",
+    "createdAt": "2025-08-16T10:30:00.000Z",
+    "updatedAt": "2025-08-16T10:30:00.000Z"
+  }
+}
+```
+
+### Error Response (400 Bad Request)
+```json
+{
+  "error": "User with this wallet address already exists"
+}
+```
+
+---
+
+## 2. Create Agent
+
+### Request
+- **Method**: `POST`
+- **URL**: `http://localhost:3000/api/agents`
+- **Headers**: `Content-Type: application/json`
+- **Body**:
+```json
+{
+  "name": "Trading Bot",
+  "description": "AI agent for automated crypto trading with advanced analysis",
+  "model": "GPT-4",
+  "capabilities": ["trading", "analysis", "alerts", "portfolio-management"],
+  "price": 10.99,
+  "isForSale": true,
+  "creatorWalletAddress": "0x742d35Cc6635C0532925a3b8D5c6d6C4B6E4d5f1"
+}
+```
+
+### Response (201 Created)
+```json
+{
+  "success": true,
+  "agent": {
+    "id": 1,
+    "name": "Trading Bot",
+    "description": "AI agent for automated crypto trading with advanced analysis",
+    "model": "GPT-4",
+    "capabilities": ["trading", "analysis", "alerts", "portfolio-management"],
+    "price": "10.99",
+    "isForSale": true,
+    "creatorId": 1,
+    "createdAt": "2025-08-16T10:35:00.000Z",
+    "updatedAt": "2025-08-16T10:35:00.000Z"
+  }
+}
+```
+
+---
+
+## 3. Get All Agents (Marketplace)
+
+### Request
+- **Method**: `GET`
+- **URL**: `http://localhost:3000/api/agents`
+
+### Response (200 OK)
+```json
+{
+  "success": true,
+  "agents": [
+    {
+      "id": 1,
+      "name": "Trading Bot",
+      "description": "AI agent for automated crypto trading with advanced analysis",
+      "model": "GPT-4",
+      "capabilities": ["trading", "analysis", "alerts", "portfolio-management"],
+      "price": "10.99",
+      "isForSale": true,
+      "creatorId": 1,
+      "createdAt": "2025-08-16T10:35:00.000Z",
+      "creator": {
+        "id": 1,
+        "walletAddress": "0x742d35Cc6635C0532925a3b8D5c6d6C4B6E4d5f1"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## 4. Get Single Agent Details
+
+### Request
+- **Method**: `GET`
+- **URL**: `http://localhost:3000/api/agents/1`
+
+### Response (200 OK)
+```json
+{
+  "success": true,
+  "agent": {
+    "id": 1,
+    "name": "Trading Bot",
+    "description": "AI agent for automated crypto trading with advanced analysis",
+    "model": "GPT-4",
+    "capabilities": ["trading", "analysis", "alerts", "portfolio-management"],
+    "price": "10.99",
+    "isForSale": true,
+    "creatorId": 1,
+    "createdAt": "2025-08-16T10:35:00.000Z",
+    "creator": {
+      "id": 1,
+      "walletAddress": "0x742d35Cc6635C0532925a3b8D5c6d6C4B6E4d5f1"
+    }
+  }
+}
+```
+
+### Error Response (404 Not Found)
+```json
+{
+  "error": "Agent not found"
+}
+```
+
+---
+
+## 5. Get User's Created Agents
+
+### Request
+- **Method**: `GET`
+- **URL**: `http://localhost:3000/api/users/0x742d35Cc6635C0532925a3b8D5c6d6C4B6E4d5f1/created-agents`
+
+### Response (200 OK)
+```json
+{
+  "success": true,
+  "agents": [
+    {
+      "id": 1,
+      "name": "Trading Bot",
+      "description": "AI agent for automated crypto trading with advanced analysis",
+      "model": "GPT-4",
+      "capabilities": ["trading", "analysis", "alerts", "portfolio-management"],
+      "price": "10.99",
+      "isForSale": true,
+      "creatorId": 1,
+      "createdAt": "2025-08-16T10:35:00.000Z",
+      "updatedAt": "2025-08-16T10:35:00.000Z"
+    }
+  ]
+}
+```
+
+### Error Response (404 Not Found)
+```json
+{
+  "error": "User not found"
+}
+```
+
+---
+
+## 6. Get User's Owned Agents
+
+### Request
+- **Method**: `GET`
+- **URL**: `http://localhost:3000/api/users/0x742d35Cc6635C0532925a3b8D5c6d6C4B6E4d5f1/owned-agents`
+
+### Response (200 OK)
+```json
+{
+  "success": true,
+  "agents": [
+    {
+      "id": 1,
+      "name": "Trading Bot",
+      "description": "AI agent for automated crypto trading with advanced analysis",
+      "model": "GPT-4",
+      "capabilities": ["trading", "analysis", "alerts", "portfolio-management"],
+      "price": "10.99",
+      "isForSale": true,
+      "creatorId": 1,
+      "createdAt": "2025-08-16T10:35:00.000Z",
+      "purchasedAt": "2025-08-16T10:35:00.000Z",
+      "creator": {
+        "id": 1,
+        "walletAddress": "0x742d35Cc6635C0532925a3b8D5c6d6C4B6E4d5f1"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## 7. Buy Agent
+
+### Request
+- **Method**: `POST`
+- **URL**: `http://localhost:3000/api/agents/buy`
+- **Headers**: `Content-Type: application/json`
+- **Body**:
+```json
+{
+  "agentId": 1,
+  "buyerWalletAddress": "0x123d35Cc6635C0532925a3b8D5c6d6C4B6E4d123"
+}
+```
+
+### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Agent purchased successfully",
+  "ownership": {
+    "id": 2,
+    "agentId": 1,
+    "userId": 2,
+    "purchasedAt": "2025-08-16T11:00:00.000Z"
+  },
+  "agent": {
+    "id": 1,
+    "name": "Trading Bot",
+    "description": "AI agent for automated crypto trading with advanced analysis",
+    "model": "GPT-4",
+    "capabilities": ["trading", "analysis", "alerts", "portfolio-management"],
+    "price": "10.99",
+    "isForSale": true,
+    "creatorId": 1,
+    "createdAt": "2025-08-16T10:35:00.000Z",
+    "updatedAt": "2025-08-16T10:35:00.000Z"
+  }
+}
+```
+
+### Error Responses
+```json
+{
+  "error": "Agent not found"
+}
+```
+```json
+{
+  "error": "Agent is not for sale"
+}
+```
+```json
+{
+  "error": "You already own this agent"
+}
+```
+
+---
+
+## 8. Check Agent Ownership
+
+### Request
+- **Method**: `GET`
+- **URL**: `http://localhost:3000/api/agents/1/ownership/0x742d35Cc6635C0532925a3b8D5c6d6C4B6E4d5f1`
+
+### Response (200 OK) - User owns the agent
+```json
+{
+  "success": true,
+  "owns": true,
+  "ownership": {
+    "id": 1,
+    "agentId": 1,
+    "userId": 1,
+    "purchasedAt": "2025-08-16T10:35:00.000Z"
+  }
+}
+```
+
+### Response (200 OK) - User doesn't own the agent
+```json
+{
+  "success": true,
+  "owns": false,
+  "ownership": null
+}
+```
+
+---
+
+## Sample Test Sequence
+
+1. **Create User**: Create a user with wallet address
+2. **Create Agent**: Create an agent for that user
+3. **Get All Agents**: View marketplace
+4. **Create Second User**: Create another user to test buying
+5. **Buy Agent**: Second user buys the agent
+6. **Check Ownership**: Verify the second user owns the agent
+7. **Get Owned Agents**: See what the second user owns
+
+## Error Handling
+
+All endpoints return appropriate HTTP status codes:
+- `200` - Success
+- `201` - Created
+- `400` - Bad Request (validation errors)
+- `404` - Not Found
+- `500` - Internal Server Error
+
+## Validation Rules
+
+- **Wallet Address**: Must be 42 characters, start with "0x", followed by 40 hex characters
+- **Agent Name**: 1-255 characters
+- **Description**: 1-1000 characters
+- **Model**: 1-100 characters
+- **Capabilities**: Array with at least 1 item
+- **Price**: Must be >= 0
