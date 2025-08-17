@@ -19,10 +19,5 @@
   ],
   "env": {
     "DATABASE_URL": "@database_url"
-  },
-  "functions": {
-    "index.js": {
-      "maxDuration": 30
-    }
   }
 }
