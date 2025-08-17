@@ -5,6 +5,8 @@ import { pgTable, serial, text, timestamp, jsonb, integer, boolean, decimal } fr
 import { relations, eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import pkg from 'pg';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const { Pool } = pkg;
 
