@@ -353,7 +353,7 @@ app.get('/api/users/:walletAddress/owned-agents', async (req, res) => {
 // 6. Buy an agent
 app.post('/api/agents/buy', async (req, res) => {
   try {
-    const { agentId, buyerWalletAddress } = buyAgentSchema.parse(req.body);
+    const { agentId, buyerWalletAddress ,onchainAgentid } = buyAgentSchema.parse(req.body);
 
     const buyer = await getOrCreateUser(buyerWalletAddress);
 
@@ -382,7 +382,7 @@ app.post('/api/agents/buy', async (req, res) => {
 
     // Create ownership record
     const newOwnership = await db.insert(agentOwnerships).values({
-      agentId: agentId,
+      agentId: onchainAgentid,
       userId: buyer.id,
     }).returning();
 
