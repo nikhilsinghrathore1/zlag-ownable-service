@@ -1,5 +1,5 @@
 {
-  "id": "fdc1b3fe-eb4b-44f9-9a02-c6bc0cd6b573",
+  "id": "4c3e2cba-ad1c-44dd-b670-76f11656d14b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -36,15 +36,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "agent_ownerships_agent_id_agents_id_fk": {
-          "name": "agent_ownerships_agent_id_agents_id_fk",
+        "agent_ownerships_agent_id_agents_agent_id_fk": {
+          "name": "agent_ownerships_agent_id_agents_agent_id_fk",
           "tableFrom": "agent_ownerships",
           "tableTo": "agents",
           "columnsFrom": [
             "agent_id"
           ],
           "columnsTo": [
-            "id"
+            "agent_id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -123,6 +123,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "agent_id": {
+          "name": "agent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -155,7 +161,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "agents_agent_id_unique": {
+          "name": "agents_agent_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "agent_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

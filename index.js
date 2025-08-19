@@ -40,13 +40,15 @@ export const agents = pgTable('agents', {
   price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0'),
   isForSale: boolean('is_for_sale').default(false).notNull(),
   creatorId: integer('creator_id').references(() => users.id).notNull(),
+  // Smart contract agent ID
+  agentId: integer('agent_id').unique(), // Can be null for agents created without smart contract
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 export const agentOwnerships = pgTable('agent_ownerships', {
   id: serial('id').primaryKey(),
-  agentId: integer('agent_id').references(() => agents.id).notNull(),
+  agentId: integer('agent_id').references(() => agents.agentId).notNull(),
   userId: integer('user_id').references(() => users.id).notNull(),
   purchasedAt: timestamp('purchased_at').defaultNow().notNull(),
 });
@@ -91,6 +93,8 @@ const createAgentSchema = z.object({
   price: z.number().min(0).optional(),
   isForSale: z.boolean().optional(),
   creatorWalletAddress: walletAddressSchema,
+  // Smart contract agent ID
+  agentId: z.number().positive().optional(),
 });
 
 const buyAgentSchema = z.object({
@@ -116,16 +120,16 @@ async function getOrCreateUser(walletAddress) {
 
 // Health check route
 app.get('/', (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     message: 'Agents API is running',
     timestamp: new Date().toISOString()
   });
 });
 
 app.get('/health', (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     message: 'API is healthy',
     timestamp: new Date().toISOString()
   });
@@ -194,12 +198,26 @@ app.get('/api/users/:walletAddress/exists', async (req, res) => {
   }
 });
 
-// 2. Create Agent
+// 2. Create Agent (FIXED)
 app.post('/api/agents', async (req, res) => {
   try {
     const agentData = createAgentSchema.parse(req.body);
 
     const creator = await getOrCreateUser(agentData.creatorWalletAddress);
+
+    // Check if agentId already exists (if provided)
+    if (agentData.agentId) {
+      const existingAgent = await db.select()
+        .from(agents)
+        .where(eq(agents.agentId, agentData.agentId))
+        .limit(1);
+
+      if (existingAgent.length > 0) {
+        return res.status(400).json({
+          error: `Agent with smart contract ID ${agentData.agentId} already exists`
+        });
+      }
+    }
 
     const newAgent = await db.insert(agents).values({
       name: agentData.name,
@@ -209,6 +227,7 @@ app.post('/api/agents', async (req, res) => {
       price: agentData.price || 0,
       isForSale: agentData.isForSale || false,
       creatorId: creator.id,
+      agentId: agentData.agentId || null, // Smart contract agent ID
     }).returning();
 
     // Creator automatically owns their created agent
@@ -266,6 +285,7 @@ app.get('/api/agents', async (req, res) => {
       price: agents.price,
       isForSale: agents.isForSale,
       creatorId: agents.creatorId,
+      agentId: agents.agentId, // Smart contract agent ID
       createdAt: agents.createdAt,
       creator: {
         id: users.id,
@@ -308,6 +328,7 @@ app.get('/api/users/:walletAddress/owned-agents', async (req, res) => {
       price: agents.price,
       isForSale: agents.isForSale,
       creatorId: agents.creatorId,
+      agentId: agents.agentId, // Smart contract agent ID
       createdAt: agents.createdAt,
       purchasedAt: agentOwnerships.purchasedAt,
       creator: {
@@ -424,6 +445,7 @@ app.get('/api/agents/:agentId', async (req, res) => {
       price: agents.price,
       isForSale: agents.isForSale,
       creatorId: agents.creatorId,
+      agentId: agents.agentId, // Smart contract agent ID
       createdAt: agents.createdAt,
       creator: {
         id: users.id,
@@ -448,20 +470,89 @@ app.get('/api/agents/:agentId', async (req, res) => {
   }
 });
 
+// Get agent by smart contract ID
+app.get('/api/agents/by-contract/:agentId', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+
+    const agent = await db.select({
+      id: agents.id,
+      name: agents.name,
+      description: agents.description,
+      model: agents.model,
+      capabilities: agents.capabilities,
+      price: agents.price,
+      isForSale: agents.isForSale,
+      creatorId: agents.creatorId,
+      agentId: agents.agentId,
+      createdAt: agents.createdAt,
+      creator: {
+        id: users.id,
+        walletAddress: users.walletAddress,
+      }
+    }).from(agents)
+      .leftJoin(users, eq(agents.creatorId, users.id))
+      .where(eq(agents.agentId, parseInt(agentId)))
+      .limit(1);
+
+    if (agent.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found with the specified smart contract ID'
+      });
+    }
+
+    res.json({
+      success: true,
+      agent: agent[0]
+    });
+  } catch (error) {
+    console.error('Get agent by contract ID error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Check if smart contract agent ID exists
+app.get('/api/agents/contract-id/:agentId/exists', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+
+    const agent = await db.select({ id: agents.id })
+      .from(agents)
+      .where(eq(agents.agentId, parseInt(agentId)))
+      .limit(1);
+
+    res.json({
+      success: true,
+      exists: agent.length > 0,
+      agentId: agent.length > 0 ? agent[0].id : null
+    });
+  } catch (error) {
+    console.error('Check contract ID exists error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
-  res.status(500).json({ 
-    success: false, 
-    error: 'Internal server error' 
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error'
   });
 });
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ 
-    success: false, 
-    error: 'Route not found' 
+  res.status(404).json({
+    success: false,
+    error: 'Route not found'
   });
 });
 

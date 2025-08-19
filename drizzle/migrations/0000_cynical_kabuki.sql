@@ -14,8 +14,10 @@ CREATE TABLE "agents" (
 	"price" numeric(10, 2) DEFAULT '0' NOT NULL,
 	"is_for_sale" boolean DEFAULT false NOT NULL,
 	"creator_id" integer NOT NULL,
+	"agent_id" integer,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "agents_agent_id_unique" UNIQUE("agent_id")
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
@@ -26,6 +28,6 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_wallet_address_unique" UNIQUE("wallet_address")
 );
 --> statement-breakpoint
-ALTER TABLE "agent_ownerships" ADD CONSTRAINT "agent_ownerships_agent_id_agents_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_ownerships" ADD CONSTRAINT "agent_ownerships_agent_id_agents_agent_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agents"("agent_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agent_ownerships" ADD CONSTRAINT "agent_ownerships_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agents" ADD CONSTRAINT "agents_creator_id_users_id_fk" FOREIGN KEY ("creator_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
