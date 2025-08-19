@@ -98,9 +98,11 @@ const createAgentSchema = z.object({
 });
 
 const buyAgentSchema = z.object({
-  agentId: z.number().positive(),
+  agentId: z.number().positive(), // This is the smart contract agent ID
   buyerWalletAddress: walletAddressSchema,
+  onchainAgentid: z.number().positive(), // Add this field
 });
+
 
 // Helper function to get or create user
 async function getOrCreateUser(walletAddress) {
@@ -353,12 +355,12 @@ app.get('/api/users/:walletAddress/owned-agents', async (req, res) => {
 // 6. Buy an agent
 app.post('/api/agents/buy', async (req, res) => {
   try {
-    const { agentId, buyerWalletAddress ,onchainAgentid } = buyAgentSchema.parse(req.body);
+    const { agentId, buyerWalletAddress, onchainAgentid } = buyAgentSchema.parse(req.body);
 
     const buyer = await getOrCreateUser(buyerWalletAddress);
 
-    // Check if agent exists and is for sale
-    const agent = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+    // Query by agents.agentId (smart contract ID) instead of agents.id
+    const agent = await db.select().from(agents).where(eq(agents.agentId, onchainAgentid)).limit(1);
 
     if (agent.length === 0) {
       return res.status(404).json({ error: 'Agent not found' });
@@ -368,11 +370,11 @@ app.post('/api/agents/buy', async (req, res) => {
       return res.status(400).json({ error: 'Agent is not for sale' });
     }
 
-    // Check if user already owns this agent
+    // Check if user already owns this agent using the smart contract agent ID
     const existingOwnership = await db.select()
       .from(agentOwnerships)
       .where(and(
-        eq(agentOwnerships.agentId, agentId),
+        eq(agentOwnerships.agentId, agentId), // Use smart contract agent ID
         eq(agentOwnerships.userId, buyer.id)
       )).limit(1);
 
@@ -380,9 +382,9 @@ app.post('/api/agents/buy', async (req, res) => {
       return res.status(400).json({ error: 'You already own this agent' });
     }
 
-    // Create ownership record
+    // Create ownership record using the smart contract agent ID
     const newOwnership = await db.insert(agentOwnerships).values({
-      agentId: onchainAgentid,
+      agentId: onchainAgentid, // This should match agentId for consistency
       userId: buyer.id,
     }).returning();
 
