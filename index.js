@@ -232,7 +232,7 @@ app.post('/api/agents', async (req, res) => {
 
     // Creator automatically owns their created agent
     await db.insert(agentOwnerships).values({
-      agentId: newAgent[0].id,
+      agentId: agentData.agentId,
       userId: creator.id,
     });
 
