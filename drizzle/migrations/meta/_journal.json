@@ -8,6 +8,13 @@
       "when": 1755599055429,
       "tag": "0000_cynical_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1755682083716,
+      "tag": "0001_greedy_the_watchers",
+      "breakpoints": true
     }
   ]
 }

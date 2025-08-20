@@ -40,12 +40,13 @@ export const agents = pgTable('agents', {
   price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0'),
   isForSale: boolean('is_for_sale').default(false).notNull(),
   creatorId: integer('creator_id').references(() => users.id).notNull(),
-  // Smart contract agent ID
-  agentId: integer('agent_id').unique(), // Can be null for agents created without smart contract
+  // Smart contract agent ID - NOT NULL since every agent has one
+  agentId: integer('agent_id').unique().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Use smart contract IDs for ownership
 export const agentOwnerships = pgTable('agent_ownerships', {
   id: serial('id').primaryKey(),
   agentId: integer('agent_id').references(() => agents.agentId).notNull(),
@@ -53,7 +54,7 @@ export const agentOwnerships = pgTable('agent_ownerships', {
   purchasedAt: timestamp('purchased_at').defaultNow().notNull(),
 });
 
-// Relations
+// Relations - FIXED
 export const usersRelations = relations(users, ({ many }) => ({
   createdAgents: many(agents),
   ownedAgents: many(agentOwnerships),
@@ -70,7 +71,7 @@ export const agentsRelations = relations(agents, ({ one, many }) => ({
 export const agentOwnershipRelations = relations(agentOwnerships, ({ one }) => ({
   agent: one(agents, {
     fields: [agentOwnerships.agentId],
-    references: [agents.id],
+    references: [agents.agentId], // FIXED: Reference smart contract ID
   }),
   user: one(users, {
     fields: [agentOwnerships.userId],
@@ -93,16 +94,14 @@ const createAgentSchema = z.object({
   price: z.number().min(0).optional(),
   isForSale: z.boolean().optional(),
   creatorWalletAddress: walletAddressSchema,
-  // Smart contract agent ID
-  agentId: z.number().positive().optional(),
+  // Smart contract agent ID - REQUIRED since every agent has one
+  agentId: z.number().positive(),
 });
 
 const buyAgentSchema = z.object({
-  agentId: z.number().positive(), // This is the smart contract agent ID
+  agentId: z.number().positive(), // Smart contract agent ID
   buyerWalletAddress: walletAddressSchema,
-  onchainAgentid: z.number().positive(), // Add this field
 });
-
 
 // Helper function to get or create user
 async function getOrCreateUser(walletAddress) {
@@ -162,12 +161,11 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-// 9. Check if user exists by wallet address
+// Check if user exists by wallet address
 app.get('/api/users/:walletAddress/exists', async (req, res) => {
   try {
     const { walletAddress } = req.params;
 
-    // Validate wallet address format
     if (!walletAddressSchema.safeParse(walletAddress).success) {
       return res.status(400).json({
         success: false,
@@ -175,9 +173,7 @@ app.get('/api/users/:walletAddress/exists', async (req, res) => {
       });
     }
 
-    // Check if user exists
     const user = await db.select().from(users).where(eq(users.walletAddress, walletAddress)).limit(1);
-
     const userExists = user.length > 0;
 
     res.json({
@@ -200,25 +196,23 @@ app.get('/api/users/:walletAddress/exists', async (req, res) => {
   }
 });
 
-// 2. Create Agent (FIXED)
+// 2. Create Agent - FIXED
 app.post('/api/agents', async (req, res) => {
   try {
     const agentData = createAgentSchema.parse(req.body);
 
     const creator = await getOrCreateUser(agentData.creatorWalletAddress);
 
-    // Check if agentId already exists (if provided)
-    if (agentData.agentId) {
-      const existingAgent = await db.select()
-        .from(agents)
-        .where(eq(agents.agentId, agentData.agentId))
-        .limit(1);
+    // Check if smart contract agentId already exists
+    const existingAgent = await db.select()
+      .from(agents)
+      .where(eq(agents.agentId, agentData.agentId))
+      .limit(1);
 
-      if (existingAgent.length > 0) {
-        return res.status(400).json({
-          error: `Agent with smart contract ID ${agentData.agentId} already exists`
-        });
-      }
+    if (existingAgent.length > 0) {
+      return res.status(400).json({
+        error: `Agent with smart contract ID ${agentData.agentId} already exists`
+      });
     }
 
     const newAgent = await db.insert(agents).values({
@@ -229,12 +223,12 @@ app.post('/api/agents', async (req, res) => {
       price: agentData.price || 0,
       isForSale: agentData.isForSale || false,
       creatorId: creator.id,
-      agentId: agentData.agentId || null, // Smart contract agent ID
+      agentId: agentData.agentId, // Required smart contract ID
     }).returning();
 
     // Creator automatically owns their created agent
     await db.insert(agentOwnerships).values({
-      agentId: agentData.agentId,
+      agentId: agentData.agentId, // Smart contract ID
       userId: creator.id,
     });
 
@@ -287,7 +281,7 @@ app.get('/api/agents', async (req, res) => {
       price: agents.price,
       isForSale: agents.isForSale,
       creatorId: agents.creatorId,
-      agentId: agents.agentId, // Smart contract agent ID
+      agentId: agents.agentId,
       createdAt: agents.createdAt,
       creator: {
         id: users.id,
@@ -306,7 +300,7 @@ app.get('/api/agents', async (req, res) => {
   }
 });
 
-// 5. Get all agents a user owns
+// 5. Get all agents a user owns - FIXED
 app.get('/api/users/:walletAddress/owned-agents', async (req, res) => {
   try {
     const { walletAddress } = req.params;
@@ -321,6 +315,7 @@ app.get('/api/users/:walletAddress/owned-agents', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // FIXED: Join using smart contract IDs
     const ownedAgents = await db.select({
       id: agents.id,
       name: agents.name,
@@ -330,7 +325,7 @@ app.get('/api/users/:walletAddress/owned-agents', async (req, res) => {
       price: agents.price,
       isForSale: agents.isForSale,
       creatorId: agents.creatorId,
-      agentId: agents.agentId, // Smart contract agent ID
+      agentId: agents.agentId,
       createdAt: agents.createdAt,
       purchasedAt: agentOwnerships.purchasedAt,
       creator: {
@@ -338,7 +333,7 @@ app.get('/api/users/:walletAddress/owned-agents', async (req, res) => {
         walletAddress: users.walletAddress,
       }
     }).from(agentOwnerships)
-      .innerJoin(agents, eq(agentOwnerships.agentId, agents.id))
+      .innerJoin(agents, eq(agentOwnerships.agentId, agents.agentId)) // FIXED: Join on smart contract IDs
       .leftJoin(users, eq(agents.creatorId, users.id))
       .where(eq(agentOwnerships.userId, user[0].id));
 
@@ -352,15 +347,15 @@ app.get('/api/users/:walletAddress/owned-agents', async (req, res) => {
   }
 });
 
-// 6. Buy an agent
+// 6. Buy an agent - FIXED
 app.post('/api/agents/buy', async (req, res) => {
   try {
-    const { agentId, buyerWalletAddress, onchainAgentid } = buyAgentSchema.parse(req.body);
+    const { agentId, buyerWalletAddress } = buyAgentSchema.parse(req.body);
 
     const buyer = await getOrCreateUser(buyerWalletAddress);
 
-    // Query by agents.agentId (smart contract ID) instead of agents.id
-    const agent = await db.select().from(agents).where(eq(agents.agentId, onchainAgentid)).limit(1);
+    // Query by smart contract agent ID
+    const agent = await db.select().from(agents).where(eq(agents.agentId, agentId)).limit(1);
 
     if (agent.length === 0) {
       return res.status(404).json({ error: 'Agent not found' });
@@ -370,11 +365,11 @@ app.post('/api/agents/buy', async (req, res) => {
       return res.status(400).json({ error: 'Agent is not for sale' });
     }
 
-    // Check if user already owns this agent using the smart contract agent ID
+    // Check if user already owns this agent using smart contract ID
     const existingOwnership = await db.select()
       .from(agentOwnerships)
       .where(and(
-        eq(agentOwnerships.agentId, agentId), // Use smart contract agent ID
+        eq(agentOwnerships.agentId, agentId), // Smart contract ID
         eq(agentOwnerships.userId, buyer.id)
       )).limit(1);
 
@@ -382,9 +377,9 @@ app.post('/api/agents/buy', async (req, res) => {
       return res.status(400).json({ error: 'You already own this agent' });
     }
 
-    // Create ownership record using the smart contract agent ID
+    // Create ownership record using smart contract ID
     const newOwnership = await db.insert(agentOwnerships).values({
-      agentId: onchainAgentid, // This should match agentId for consistency
+      agentId: agentId, // Smart contract ID
       userId: buyer.id,
     }).returning();
 
@@ -400,7 +395,7 @@ app.post('/api/agents/buy', async (req, res) => {
   }
 });
 
-// 7. Check if user owns an agent (for usage validation)
+// 7. Check if user owns an agent - FIXED
 app.get('/api/agents/:agentId/ownership/:walletAddress', async (req, res) => {
   try {
     const { agentId, walletAddress } = req.params;
@@ -415,10 +410,11 @@ app.get('/api/agents/:agentId/ownership/:walletAddress', async (req, res) => {
       return res.json({ success: true, owns: false });
     }
 
+    // Check ownership using smart contract ID
     const ownership = await db.select()
       .from(agentOwnerships)
       .where(and(
-        eq(agentOwnerships.agentId, parseInt(agentId)),
+        eq(agentOwnerships.agentId, parseInt(agentId)), // Smart contract ID
         eq(agentOwnerships.userId, user[0].id)
       )).limit(1);
 
@@ -447,7 +443,7 @@ app.get('/api/agents/:agentId', async (req, res) => {
       price: agents.price,
       isForSale: agents.isForSale,
       creatorId: agents.creatorId,
-      agentId: agents.agentId, // Smart contract agent ID
+      agentId: agents.agentId,
       createdAt: agents.createdAt,
       creator: {
         id: users.id,
