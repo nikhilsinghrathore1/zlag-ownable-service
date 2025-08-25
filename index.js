@@ -161,6 +161,30 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
+// Get all users
+app.get('/api/users', async (req, res) => {
+  try {
+    const allUsers = await db.select({
+      id: users.id,
+      walletAddress: users.walletAddress,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    }).from(users).orderBy(users.createdAt);
+
+    res.json({
+      success: true,
+      users: allUsers,
+      count: allUsers.length
+    });
+  } catch (error) {
+    console.error('Get all users error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Check if user exists by wallet address
 app.get('/api/users/:walletAddress/exists', async (req, res) => {
   try {
@@ -530,6 +554,27 @@ app.get('/api/agents/contract-id/:agentId/exists', async (req, res) => {
     });
   } catch (error) {
     console.error('Check contract ID exists error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Clear agent ownerships table (DELETE ALL RECORDS)
+app.delete('/api/agent-ownerships/clear', async (req, res) => {
+  try {
+    // Delete all records from agent_ownerships table
+    const result = await db.delete(agentOwnerships);
+
+    res.json({
+      success: true,
+      message: 'All agent ownerships have been cleared successfully',
+      deletedCount: result.rowCount || 0,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Clear agent ownerships error:', error);
     res.status(500).json({
       success: false,
       error: error.message
